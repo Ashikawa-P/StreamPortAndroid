@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'StreamPortAndroid_v1.4_FIXED.zip'
+      - 'StreamPortAndroid_v1.5_FIXED.zip'
       - '.github/workflows/build-streamport-apk.yml'
 
 permissions:
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP="$GITHUB_WORKSPACE/StreamPortAndroid_v1.4_FIXED.zip"
+          ZIP="$GITHUB_WORKSPACE/StreamPortAndroid_v1.5_FIXED.zip"
           test -f "$ZIP"
 
           DEST="$RUNNER_TEMP/streamport-project"
@@ -44,18 +44,19 @@ jobs:
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           echo "Building project from: $PROJECT_DIR"
 
-      - name: Verify complete-stream fix
+      - name: Verify playback compatibility fix
         shell: bash
         run: |
           set -euo pipefail
           FILE="${{ steps.project.outputs.dir }}/app/src/main/java/de/gabriel/streamport/MainActivity.java"
 
-          grep -q 'private static final int PROBE_START_SEGMENT = 300' "$FILE"
-          grep -q 'candidate -= PROBE_STEP' "$FILE"
+          grep -q 'FLAG_DETECT_ACCESS_UNITS' "$FILE"
+          grep -q 'FLAG_ALLOW_NON_IDR_KEYFRAMES' "$FILE"
+          grep -q 'new DefaultHlsExtractorFactory(tsFlags, true)' "$FILE"
+          grep -q 'setExtractorFactory(extractorFactory)' "$FILE"
+          grep -q 'setEnableDecoderFallback(true)' "$FILE"
+          grep -q 'describePlaybackError' "$FILE"
           grep -q 'for (int index = 0; index <= lastSegment; index++)' "$FILE"
-          grep -q '#EXT-X-MEDIA-SEQUENCE:0' "$FILE"
-          grep -q 'upstream.DefaultHttpDataSource' "$FILE"
-          grep -q 'connection.setRequestProperty("Origin", SITE_ORIGIN)' "$FILE"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -85,13 +86,14 @@ jobs:
           set -euo pipefail
           APK="${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "$GITHUB_WORKSPACE/StreamPort-v1.4.apk"
+          cp "$APK" "$GITHUB_WORKSPACE/StreamPort-v1.5.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StreamPort-APK-v1.4
-          path: StreamPort-v1.4.apk
+          name: StreamPort-APK-v1.5
+          path: StreamPort-v1.5.apk
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+          
