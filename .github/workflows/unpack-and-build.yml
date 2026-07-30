@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     paths:
-      - 'StreamPortAndroid_GitHubBuild.zip'
       - '.github/workflows/unpack-and-build.yml'
   workflow_dispatch:
 
@@ -35,7 +34,11 @@ jobs:
 
           cp -a ".unpacked/$ROOT/." ./
           rm -rf .unpacked "$ZIP"
-          rm -f .github/workflows/unpack-and-build.yml
+
+          # GitHub's automatic token may not create or update workflow files.
+          # The current bootstrap workflow stays unchanged; the nested build
+          # workflow from the ZIP is deliberately excluded from the commit.
+          rm -f .github/workflows/build-apk.yml
 
       - name: Commit unpacked project
         shell: bash
