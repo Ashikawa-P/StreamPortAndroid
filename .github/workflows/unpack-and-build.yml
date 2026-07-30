@@ -5,11 +5,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'StreamPortAndroid_v1.3_FIXED.zip'
+      - 'StreamPortAndroid_v1.4_FIXED.zip'
       - '.github/workflows/build-streamport-apk.yml'
-      - 'app/**'
-      - '*.gradle.kts'
-      - 'gradle.properties'
 
 permissions:
   contents: read
@@ -23,46 +20,41 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Select or unpack Android project
+      - name: Unpack Android project
         id: project
         shell: bash
         run: |
           set -euo pipefail
 
-          FIXED_ZIP="$GITHUB_WORKSPACE/StreamPortAndroid_v1.3_FIXED.zip"
+          ZIP="$GITHUB_WORKSPACE/StreamPortAndroid_v1.4_FIXED.zip"
+          test -f "$ZIP"
 
-          if [[ -f "$FIXED_ZIP" ]]; then
-            DEST="$RUNNER_TEMP/streamport-project"
-            rm -rf "$DEST"
-            mkdir -p "$DEST"
-            unzip -q "$FIXED_ZIP" -d "$DEST"
+          DEST="$RUNNER_TEMP/streamport-project"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          unzip -q "$ZIP" -d "$DEST"
 
-            SETTINGS_FILE="$(find "$DEST" -maxdepth 3 -type f -name settings.gradle.kts -print -quit)"
-            if [[ -z "$SETTINGS_FILE" ]]; then
-              echo "No settings.gradle.kts found inside $FIXED_ZIP" >&2
-              exit 1
-            fi
-            PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
-          elif [[ -f "$GITHUB_WORKSPACE/settings.gradle.kts" \
-               && -f "$GITHUB_WORKSPACE/app/build.gradle.kts" ]]; then
-            PROJECT_DIR="$GITHUB_WORKSPACE"
-          else
-            echo "Upload StreamPortAndroid_v1.3_FIXED.zip or commit the unpacked project." >&2
+          SETTINGS_FILE="$(find "$DEST" -maxdepth 3 -type f -name settings.gradle.kts -print -quit)"
+          if [[ -z "$SETTINGS_FILE" ]]; then
+            echo "No settings.gradle.kts found inside $ZIP" >&2
             exit 1
           fi
 
+          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           echo "Building project from: $PROJECT_DIR"
 
-      - name: Verify playback fix is present
+      - name: Verify complete-stream fix
         shell: bash
         run: |
           set -euo pipefail
           FILE="${{ steps.project.outputs.dir }}/app/src/main/java/de/gabriel/streamport/MainActivity.java"
 
-          grep -q 'upstream.DefaultDataSource' "$FILE"
+          grep -q 'private static final int PROBE_START_SEGMENT = 300' "$FILE"
+          grep -q 'candidate -= PROBE_STEP' "$FILE"
+          grep -q 'for (int index = 0; index <= lastSegment; index++)' "$FILE"
+          grep -q '#EXT-X-MEDIA-SEQUENCE:0' "$FILE"
           grep -q 'upstream.DefaultHttpDataSource' "$FILE"
-          grep -q 'for (int index = firstSegment; index <= lastSegment; index++)' "$FILE"
           grep -q 'connection.setRequestProperty("Origin", SITE_ORIGIN)' "$FILE"
 
       - name: Set up Java 17
@@ -93,13 +85,13 @@ jobs:
           set -euo pipefail
           APK="${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "$GITHUB_WORKSPACE/StreamPort-v1.3.apk"
+          cp "$APK" "$GITHUB_WORKSPACE/StreamPort-v1.4.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StreamPort-APK-v1.3
-          path: StreamPort-v1.3.apk
+          name: StreamPort-APK-v1.4
+          path: StreamPort-v1.4.apk
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
