@@ -1,4 +1,4 @@
-name: Unpack project and build APK
+name: Fix imports and build APK
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  unpack-and-build:
+  build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -19,36 +19,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Unpack project into repository root
+      - name: Fix ExoPlayer datasource imports
         shell: bash
         run: |
           set -euo pipefail
-          ZIP='StreamPortAndroid_GitHubBuild.zip'
-          ROOT='StreamPortAndroid_GitHubBuild'
+          FILE='app/src/main/java/de/gabriel/streamport/MainActivity.java'
+          test -f "$FILE"
 
-          test -f "$ZIP"
-          rm -rf .unpacked
-          mkdir .unpacked
-          unzip -q "$ZIP" -d .unpacked
-          test -d ".unpacked/$ROOT"
+          sed -i             's/com\.google\.android\.exoplayer2\.datasource\.DefaultDataSource/com.google.android.exoplayer2.upstream.DefaultDataSource/'             "$FILE"
+          sed -i             's/com\.google\.android\.exoplayer2\.datasource\.DefaultHttpDataSource/com.google.android.exoplayer2.upstream.DefaultHttpDataSource/'             "$FILE"
 
-          cp -a ".unpacked/$ROOT/." ./
-          rm -rf .unpacked "$ZIP"
+          grep -q 'com.google.android.exoplayer2.upstream.DefaultDataSource' "$FILE"
+          grep -q 'com.google.android.exoplayer2.upstream.DefaultHttpDataSource' "$FILE"
 
-          # GitHub's automatic token may not create or update workflow files.
-          # The current bootstrap workflow stays unchanged; the nested build
-          # workflow from the ZIP is deliberately excluded from the commit.
-          rm -f .github/workflows/build-apk.yml
-
-      - name: Commit unpacked project
+      - name: Commit corrected imports
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add app/src/main/java/de/gabriel/streamport/MainActivity.java
           if ! git diff --cached --quiet; then
-            git commit -m 'Unpack Android project'
+            git commit -m 'Fix ExoPlayer datasource imports'
             git push
           fi
 
@@ -84,3 +76,4 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+          
