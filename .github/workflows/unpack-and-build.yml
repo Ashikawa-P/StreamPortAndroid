@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'StreamPortAndroid_v1.5_FIXED.zip'
+      - 'StreamPortAndroid_v2.0_WEBVIEW.zip'
       - '.github/workflows/build-streamport-apk.yml'
 
 permissions:
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP="$GITHUB_WORKSPACE/StreamPortAndroid_v1.5_FIXED.zip"
+          ZIP="$GITHUB_WORKSPACE/StreamPortAndroid_v2.0_WEBVIEW.zip"
           test -f "$ZIP"
 
           DEST="$RUNNER_TEMP/streamport-project"
@@ -44,19 +44,23 @@ jobs:
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           echo "Building project from: $PROJECT_DIR"
 
-      - name: Verify playback compatibility fix
+      - name: Verify HTML-faithful WebView implementation
         shell: bash
         run: |
           set -euo pipefail
-          FILE="${{ steps.project.outputs.dir }}/app/src/main/java/de/gabriel/streamport/MainActivity.java"
 
-          grep -q 'FLAG_DETECT_ACCESS_UNITS' "$FILE"
-          grep -q 'FLAG_ALLOW_NON_IDR_KEYFRAMES' "$FILE"
-          grep -q 'new DefaultHlsExtractorFactory(tsFlags, true)' "$FILE"
-          grep -q 'setExtractorFactory(extractorFactory)' "$FILE"
-          grep -q 'setEnableDecoderFallback(true)' "$FILE"
-          grep -q 'describePlaybackError' "$FILE"
-          grep -q 'for (int index = 0; index <= lastSegment; index++)' "$FILE"
+          PROJECT="${{ steps.project.outputs.dir }}"
+          JAVA="$PROJECT/app/src/main/java/de/gabriel/streamport/MainActivity.java"
+          HTML="$PROJECT/app/src/main/assets/player.html"
+
+          grep -q 'shouldInterceptRequest' "$JAVA"
+          grep -q 'Access-Control-Allow-Origin' "$JAVA"
+          grep -q 'no fabricated Origin header' "$JAVA"
+          grep -q 'loadDataWithBaseURL' "$JAVA"
+          grep -q 'method: "HEAD"' "$HTML"
+          grep -q 'new Hls' "$HTML"
+          grep -q 'hls.loadSource' "$HTML"
+          grep -q 'for (let i = 0; i <= last; i++)' "$HTML"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -86,14 +90,13 @@ jobs:
           set -euo pipefail
           APK="${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "$GITHUB_WORKSPACE/StreamPort-v1.5.apk"
+          cp "$APK" "$GITHUB_WORKSPACE/StreamPort-v2.0.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StreamPort-APK-v1.5
-          path: StreamPort-v1.5.apk
+          name: StreamPort-APK-v2.0
+          path: StreamPort-v2.0.apk
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
-          
